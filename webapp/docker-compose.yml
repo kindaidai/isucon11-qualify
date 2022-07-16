@@ -1,0 +1,55 @@
+version: "3.9"
+
+services:
+  app:
+    build:
+      dockerfile: ./ruby/Dockerfile
+      context: ./
+    ports:
+      - "3000:3000"
+    environment:
+      MYSQL_HOST: mysql
+      MYSQL_PORT: 3306
+      MYSQL_DATABASE: isucondition
+      MYSQL_USER: isucon
+      MYSQL_PASSWORD: isucon
+      POST_ISUCONDITION_TARGET_BASE_URL: http://app:3000
+    command: bundle exec puma -p 3000
+    volumes:
+      - "./ruby:/webapp/ruby"
+      - "./ec256-public.pem:/webapp/ec256-public.pem"
+      - "./NoImage.jpg:/webapp/NoImage.jpg"
+      - "./sql/init.sh:/webapp/sql/init.sh"
+      - "./sql/0_Schema.sql:/webapp/sql/0_Schema.sql"
+      - "./sql/1_InitData.sql:/webapp/sql/1_InitData.sql"
+    depends_on:
+      - mysql
+  mysql:
+    build:
+      dockerfile: ./sql/Dockerfile
+      context: ./
+    restart: always
+    environment:
+      MYSQL_HOST: mysql
+      POST_ISUCONDITION_TARGET_BASE_URL: http://app:3000
+      MYSQL_PORT: 3306
+      MYSQL_USER: isucon
+      MYSQL_PASSWORD: isucon
+      MYSQL_DATABASE: isucondition
+      MYSQL_ROOT_PASSWORD: root
+    volumes:
+      - "./sql/0_Schema.sql:/docker-entrypoint-initdb.d/0_Schema.sql"
+      - "./sql/1_InitData.sql:/docker-entrypoint-initdb.d/1_InitData.sql"
+    expose:
+      - "3306"
+    ports:
+      - "127.0.0.1::3306"
+  jiaapi-mock:
+    image: golang:1.16.5-buster
+    restart: always
+    working_dir: /jiaapi
+    command: ["go", "run", "."]
+    ports:
+      - "5000:5000"
+    volumes:
+      - "../extra/jiaapi-mock:/jiaapi"
